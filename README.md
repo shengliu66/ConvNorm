@@ -6,6 +6,6 @@ We introduce a simple and effi-cient “convolutional normalization” method th
 <p float="left" align="center">
 <img src="ConvNorm_concept.png" width="800" /> 
 <figcaption align="center">
-These graphs show the comparison between BatchNorm and ConvNorm on activations of $k=1,\dots,C$ channels. BatchNorm subtracts and multiplies the activations of each channel by computed scalars: mean $\mu$ and variance $\sigma^2$, before a per-channel affine transform parameterized by learned parameters $\beta$ and $\gamma$; ConvNorm performs per-channel convolution with precomputed kernel $v$ to normalize the spectrum of the weight matrix for the convolution layer, following with a channel-wise convolution with learned kernel $r$ as the affine transform..
+These graphs show the comparison between BatchNorm and ConvNorm on activations of `$k=1,\dots,C$` channels. BatchNorm subtracts and multiplies the activations of each channel by computed scalars: mean `$\mu$` and variance `$\sigma^2$`, before a per-channel affine transform parameterized by learned parameters `$\beta$` and `$\gamma$`; ConvNorm performs per-channel convolution with precomputed kernel `$v$` to normalize the spectrum of the weight matrix for the convolution layer, following with a channel-wise convolution with learned kernel `$r$` as the affine transform..
 </figcaption>
 </p>
