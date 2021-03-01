@@ -14,7 +14,7 @@ These graphs show the comparison between BatchNorm and ConvNorm on activations o
 ### Data
 - Please download the data before running the code, add path to the downloaded data to `data_loader.args.data_dir` in the corresponding config file.
 ### Training
-- Code for training ELR is in the following file: [`train.py`](./train.py).
+- Code for training CIFAR100 with ConvNorm is in the following file: [`train.py`](./train.py).
 ```
 usage: train.py [-c] [-r] [-d] [--lr learning_rate] [--bs batch_size] [--conv conv_layer] [--norm norm_layer] [--seed seed]
                                [--name exp_name] 
