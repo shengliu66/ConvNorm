@@ -33,3 +33,21 @@ usage: train.py [-c] [-r] [-d] [--lr learning_rate] [--bs batch_size] [--conv co
     --name exp_name               experiment name
 ```
 Configuration file is **required** to run the training, other types of option could be found in the following file: [`train.py`](./train.py).
+
+### Example
+In order to use our proposed Convolutional Normalization (ConvNorm), you can simply replace your convolutional layer and normalization layer by this [module](./models/prec_conv.py). In the module, the parameter **affine** controls whether to use the affine transform of our method, and the parameter **bn** controls whether to use BatchNorm after ConvNorm.
+
+## Reference
+For technical details and full experimental results, please check [our paper](https://arxiv.org/abs/2103.00673).
+```
+@article{liu2021convolutional,
+      title={Convolutional Normalization: Improving Deep Convolutional Network Robustness and Training}, 
+      author={Sheng Liu and Xiao Li and Yuexiang Zhai and Chong You and Zhihui Zhu and Carlos Fernandez-Granda and Qing Qu},
+      year={2021},
+      eprint={2103.00673},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV}
+}
+```
+## Contact
+Please contact shengliu@nyu.edu or xl998@nyu.edu if you have any question on the codes.
