@@ -1,5 +1,5 @@
 # ConvNorm
-This repository is the official implementation of Convolutional Normalization: Improving Robustness and Training for Deep Neural Networks
+This repository is the official implementation of [Convolutional Normalization: Improving Robustness and Training for Deep Neural Networks](https://arxiv.org/abs/2103.00673).
 
 We introduce a simple and efficient “convolutional normalization” method thatcan fully exploit the convolutional structure in theFourier domain and serve as a simple plug-and-play module to be conveniently incorporated intoany ConvNets. We show that convolutional normalization can reduce the layerwise spectral norm of the weight matrices and hence improve the Lipschitzness of the network, leading to easier training and improved robustness for deep ConvNets. Applied to classification under noise corruptions and generative adversarial network (GAN), we show that convolutional normalization improves the robustness of common ConvNets such as ResNet and the performance of GAN.
 
