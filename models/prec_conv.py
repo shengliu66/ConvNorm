@@ -76,7 +76,7 @@ class PreConv(_ConvNd):
                 if self.num_batches_tracked is not None:
                     self.num_batches_tracked += 1
                     if self.momentum is None:  # use cumulative moving average
-                        exponential_average_factor = cosine_rampdown(self.num_batches_tracked,40000)
+                        exponential_average_factor = max(cosine_rampdown(self.num_batches_tracked,40000),1e-2)
                     else:  # use exponential moving average
                         exponential_average_factor = self.momentum
             self.running_V = exponential_average_factor * current_V\
@@ -92,7 +92,6 @@ class PreConv(_ConvNd):
         if (self.kernel_size[0]==1) or (self.kernel_size[1] ==1):
             V = kernel ** 2
             V = torch.sum(V, dim=1)
-            V = V + 1e-4 #* V.view(V.size(0),-1).max(dim=-1)[0][:,None,None]
             V = torch.exp(-0.5*torch.log(V))
             with torch.no_grad():
                 if self.training:
@@ -110,7 +109,6 @@ class PreConv(_ConvNd):
                     f_weight = torch.rfft(pad_kernel, 2, normalized=False, onesided=True)
                     V = complex_abs(f_weight) 
                     V = torch.sum(V, dim=1)
-                    V = V + 1e-4 #* V.view(V.size(0),-1).max(dim=-1)[0][:,None,None]
                     V = torch.exp(-0.5*torch.log(V))
                     self._calculate_running_estimate(V)
                 else:
