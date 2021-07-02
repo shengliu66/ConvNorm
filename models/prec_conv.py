@@ -13,13 +13,12 @@ def compl_mul_2D(a, b):
     """
     Given a and b two tensors of dimension 5
     with the last dimension being the real and imaginary part,
-    """
+    """ 
     return torch.stack([
         a[..., 0].mul_(b),
         a[..., 1].mul_(b)], dim=-1)
 
 def cosine_rampdown(current, rampdown_length):
-    """Cosine rampdown from https://arxiv.org/abs/1608.03983"""
     current = np.clip(current, 0.0, rampdown_length)
     return float(.5 * (np.cos(np.pi * current / rampdown_length) + 1))
 
@@ -30,7 +29,7 @@ class PreConv(_ConvNd):
     def __init__(
         self, in_channels, out_channels, kernel_size, stride=1, padding=0,
         dilation=1, groups=1, bias=False, padding_mode='zeros', affine = True,
-        bn = True, momentum = None , track_running_stats=True):
+        bn = True, momentum = None, track_running_stats=True):
         kernel_size = _pair(kernel_size)
         stride = _pair(stride)
         padding = _pair(padding)
@@ -76,7 +75,7 @@ class PreConv(_ConvNd):
                 if self.num_batches_tracked is not None:
                     self.num_batches_tracked += 1
                     if self.momentum is None:  # use cumulative moving average
-                        exponential_average_factor = cosine_rampdown(self.num_batches_tracked,40000)
+                        exponential_average_factor = max(cosine_rampdown(self.num_batches_tracked,40000),1e-2)
                     else:  # use exponential moving average
                         exponential_average_factor = self.momentum
             self.running_V = exponential_average_factor * current_V\
@@ -92,7 +91,6 @@ class PreConv(_ConvNd):
         if (self.kernel_size[0]==1) or (self.kernel_size[1] ==1):
             V = kernel ** 2
             V = torch.sum(V, dim=1)
-            V = V + 1e-4 #* V.view(V.size(0),-1).max(dim=-1)[0][:,None,None]
             V = torch.exp(-0.5*torch.log(V))
             with torch.no_grad():
                 if self.training:
@@ -110,7 +108,6 @@ class PreConv(_ConvNd):
                     f_weight = torch.rfft(pad_kernel, 2, normalized=False, onesided=True)
                     V = complex_abs(f_weight) 
                     V = torch.sum(V, dim=1)
-                    V = V + 1e-4 #* V.view(V.size(0),-1).max(dim=-1)[0][:,None,None]
                     V = torch.exp(-0.5*torch.log(V))
                     self._calculate_running_estimate(V)
                 else:

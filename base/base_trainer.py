@@ -38,6 +38,8 @@ class BaseTrainer:
         # setup GPU device if available, move model into configured device
         self.device, device_ids = self._prepare_device(config['n_gpu'])
         self.model = model.to(self.device)
+        
+        self.bin_gates = [p for p in self.model.parameters() if getattr(p, 'bin_gate', False)]
 
         if len(device_ids) > 1:
             self.model = torch.nn.DataParallel(model, device_ids=device_ids)

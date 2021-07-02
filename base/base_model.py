@@ -4,7 +4,6 @@ from abc import abstractmethod
 from functools import partial
 
 from models.prec_conv import Preconditioned_Conv2d
-from models.own import OWN_Conv2d
 from models.oni import ONI_Conv2d
 from models.activation import SReLU, Regular_ReLU
 
@@ -86,16 +85,12 @@ class BaseModel(nn.Module):
 #             self.conv_layer = partial(nn.Conv2d, bias = False) 
             self.conv_layer = nn.Conv2d
         elif self.conv_layer_type == "prec_conv":
-            #self.conv_layer = partial(conv2d, bias = False)
-#             self.conv_layer = partial(Preconditioned_Conv2d, bias = False)
             self.conv_layer = Preconditioned_Conv2d
         elif self.conv_layer_type == "sn_conv":
             # self.conv_layer = partial(sn_conv2d, bias = False)
             self.conv_layer = sn_conv2d
         elif self.conv_layer_type == "oni_conv":
             self.conv_layer = ONI_Conv2d
-        elif self.conv_layer_type == "own_conv":
-            self.conv_layer = OWN_Conv2d
         else:
             raise NotImplementedError
 
