@@ -6,12 +6,12 @@ from tqdm import tqdm
 from typing import List
 import sys
 from base import BaseTrainer
-from utils import inf_loop, get_logger, Timer
+from utils import inf_loop, get_logger, Timer, deconv_orth_dist, orth_dist
 from collections import OrderedDict
 import argparse
 
 
-class Trainer(BaseTrainer):
+class Adv_Trainer(BaseTrainer):
     """
     Trainer class
     Note:
@@ -46,6 +46,25 @@ class Trainer(BaseTrainer):
         self.new_best_val = False
         self.val_acc = 0
         self.test_val_acc = 0
+        
+        # Data mean and std, (cifar10)
+        self.dmean = torch.tensor([0.4914, 0.4822, 0.4465]).to(self.device)
+        self.dstd = torch.tensor([0.2023, 0.1994, 0.2010]).to(self.device)
+        
+        cfg_trainer = config['trainer']
+        # OCNN related
+        self.ocnn = cfg_trainer["OCNN"]
+        print(self.ocnn)
+        if self.ocnn:
+            self.lamb_ocnn = cfg_trainer["lamb_ocnn"]
+            print(f"Adding additional regularization for OCNN with lamb {self.lamb_ocnn}")
+        
+        # Attack amount
+        color_value = 255.0
+        self.fgsm_step = cfg_trainer["fgsm_step"] / color_value
+        self.adv_clip_eps = cfg_trainer["adv_clip_eps"] / color_value
+        print(f"Each fgsm_step is {self.fgsm_step}, total eps {self.adv_clip_eps}")
+        self.adv_repeats = cfg_trainer["adv_repeats"]
 
     def _eval_metrics(self, output, label):
         acc_metrics = np.zeros(len(self.metrics))
@@ -53,6 +72,9 @@ class Trainer(BaseTrainer):
             acc_metrics[i] += metric(output, label)
             self.writer.add_scalar({'{}'.format(metric.__name__): acc_metrics[i]})
         return acc_metrics
+    
+    def fgsm(self, gradz, step_size):
+        return step_size*torch.sign(gradz)
 
     def _train_epoch(self, epoch):
         """
@@ -71,30 +93,63 @@ class Trainer(BaseTrainer):
 
         total_loss = 0
         total_metrics = np.zeros(len(self.metrics))
-
-
+        
         with tqdm(self.data_loader) as progress:
             for batch_idx, (data, label) in enumerate(progress):
                 progress.set_description_str(f'Train epoch {epoch}')
                 
                 data, label = data.to(self.device), label.long().to(self.device)
                 
-                output = self.model(data)
+                # Adv training steps
+                global_noise_data = torch.zeros([data.shape[0], 3, 32, 32]).to(self.device)
+                for j in range(self.adv_repeats):
+                    # Ascend on the global noise
+                    noise_batch = global_noise_data.clone().requires_grad_(True).to(self.device)
+                    in1 = data + noise_batch
+                    in1.clamp_(0, 1.0)
+                    in1.sub_(self.dmean[None,:,None,None]).div_(self.dstd[None,:,None,None])
+                    output = self.model(in1)
+                    
+                    loss = self.train_criterion(output, label)
+                    
+                    if self.ocnn:
+                        #####
+                        # from https://github.com/samaonline/Orthogonal-Convolutional-Neural-Networks/blob/master/imagenet/main_orth18.py
+                        # And only applicable to ResNet18
+                        diff = orth_dist(self.model.layer2[0].shortcut[0].weight) + orth_dist(self.model.layer3[0].shortcut[0].weight) + orth_dist(self.model.layer4[0].shortcut[0].weight)
+                        diff += deconv_orth_dist(self.model.layer1[0].conv1.weight, stride=1) + deconv_orth_dist(self.model.layer1[1].conv1.weight, stride=1)
+                        diff += deconv_orth_dist(self.model.layer2[0].conv1.weight, stride=2) + deconv_orth_dist(self.model.layer2[1].conv1.weight, stride=1)
+                        diff += deconv_orth_dist(self.model.layer3[0].conv1.weight, stride=2) + deconv_orth_dist(self.model.layer3[1].conv1.weight, stride=1)
+                        diff += deconv_orth_dist(self.model.layer4[0].conv1.weight, stride=2) + deconv_orth_dist(self.model.layer4[1].conv1.weight, stride=1)
+                        #####
+                        loss = loss + self.lamb_ocnn * diff
+                    
+                    self.writer.set_step((epoch - 1) * self.len_epoch * self.adv_repeats + batch_idx * self.adv_repeats + j, epoch=epoch)
+                    self.writer.add_scalar({'loss': loss.item()})
+                    self.train_loss_list.append(loss.item())
+                    total_loss += loss.item()
+                    total_metrics += self._eval_metrics(output, label)
 
-                loss = self.train_criterion(output, label)
-                self.optimizer.zero_grad()
-                loss.backward()
-                
-                self.optimizer.step()
-                
-                for p in self.bin_gates:
-                    p.data.clamp_(min=0, max=1)
+                    if batch_idx % self.log_step == 0:
+                        progress.set_postfix_str(' {} Loss: {:.6f}'.format(
+                            self._progress(batch_idx),
+                            loss.item()))
 
-                self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx, epoch=epoch)
-                self.writer.add_scalar({'loss': loss.item()})
-                self.train_loss_list.append(loss.item())
-                total_loss += loss.item()
-                total_metrics += self._eval_metrics(output, label)
+                    # compute gradient and do SGD step
+                    self.optimizer.zero_grad()
+                    loss.backward()
+
+                    # Update the noise for the next iteration
+                    pert = self.fgsm(noise_batch.grad, self.fgsm_step)
+                    global_noise_data[0:data.shape[0]] += pert.data
+                    global_noise_data.clamp_(-self.adv_clip_eps, self.adv_clip_eps)
+
+                    self.optimizer.step()
+                    
+                    # Back to normal set-up
+                    for p in self.bin_gates:
+                        p.data.clamp_(min=0, max=1)
+
 
                 if batch_idx % self.log_step == 0:
                     progress.set_postfix_str(' {} Loss: {:.6f}'.format(
@@ -141,6 +196,10 @@ class Trainer(BaseTrainer):
                 for batch_idx, (data, label) in enumerate(progress):
                     progress.set_description_str(f'Valid epoch {epoch}')
                     data, label = data.to(self.device), label.to(self.device)
+                    
+                    # Since we didn't normalize input at dataloading phase
+                    data.sub_(self.dmean[None,:,None,None]).div_(self.dstd[None,:,None,None])
+                    
                     output = self.model(data)
                     loss = self.val_criterion(output, label)
 
@@ -184,6 +243,10 @@ class Trainer(BaseTrainer):
                 for batch_idx, (data, label) in enumerate(progress):
                     progress.set_description_str(f'Test epoch {epoch}')
                     data, label = data.to(self.device), label.to(self.device)
+                    
+                    # Since we didn't normalize input at dataloading phase
+                    data.sub_(self.dmean[None,:,None,None]).div_(self.dstd[None,:,None,None])
+                    
                     output = self.model(data)
                     
                     loss = self.val_criterion(output, label)

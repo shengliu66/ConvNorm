@@ -10,32 +10,49 @@ These graphs show the comparison between BatchNorm and ConvNorm on activations o
 </figcaption>
 </p>
 
+## Environment
+- python 3.9.0
+- torch 1.6.0
+- torchvision 0.7.0
+- sklearn 0.23.2
+- comet_ml 3.2.11
+- numpy 1.19.2
+- matplotlib 3.3.2
+
+The versions of the dependencies listed are not strict, some earlier versions of the dependencies should also work.
+
+## General
+We use config files to control the parameters of training and validation. An example of standard training config could be found in `config_cifar10_standard.json` and an example of robustly training could be found in `config_robust_train.json`. We will mention the important parameters for each set up below.
+
+In order to use our proposed Convolutional Normalization (ConvNorm), you can simply replace your convolutional layer and normalization layer by this [module](./models/prec_conv.py). In the module, the parameter **affine** controls whether to use the affine transform of our method, and the parameter **bn** controls whether to use BatchNorm after ConvNorm.
+
 ## Training
 ### Data
 - Please download the data before running the code, add path to the downloaded data to `data_loader.args.data_dir` in the corresponding config file.
 ### Training
-- Code for training CIFAR100 with ConvNorm is in the following file: [`train.py`](./train.py).
-```
-usage: train.py [-c] [-r] [-d] [--lr learning_rate] [--bs batch_size] [--conv conv_layer] [--norm norm_layer] [--seed seed]
-                               [--name exp_name] 
+Change `arch.args.conv_layer_type` for different methods and set `arch.args.norm_layer_type` accordingly. For example, to run standard convolution with BatchNorm, set `arch.args.conv_layer_type` to be "conv" and `arch.args.norm_layer_type` to be "bn"; to run our our method, set `arch.args.conv_layer_type` to be "prec_conv" and `arch.args.norm_layer_type` to be "no" (since we include the BatchNorm in the implementation of our method) in the config file.
 
-  arguments:
-    -c, --config                  config file path (default: None)
-    -r, --resume                  path to latest checkpoint (default: None)
-    -d, --device                  indices of GPUs to enable (default: all)     
-  
-  options:
-    --lr learning_rate            learning rate (default value is the value in the config file)
-    --bs batch_size               batch size (default value is the value in the config file)
-    --conv conv_layer             type of convolution layer to use (for ours: prec_conv, for default conv: conv)
-    --norm norm_layer             type of normalization layer to use (for ours: no, for default BatchNorm: bn)
-    --seed seed                   which random seed to set
-    --name exp_name               experiment name
-```
-Configuration file is **required** to run the training, other types of option could be found in the following file: [`train.py`](./train.py).
+- Code for standard training with ConvNorm is in the following file: `train.py`. For reproducing our label noise experiments, set `trainer.sym` to True and denote the desired label noise percentage by changing `trainer.percent`. For reproducing the data scarcity experiments, change `trainer.subset_percent` to the desired subset percentage.
+- Code for rubust training of CIFAR10 is in the following file: `train_robust.py`. A corresponding config file is `config_robust_train.json`. Note that in the config, `trainer.adv_repeats` means the times for repeating training for each minibatch; `trainer.fgsm_step` denotes the step amount of one FGSM iteration; `trainer.adv_clip_eps` is the $l_{inf}$ norm bound of the perturbation; `pgd_attack.K` is the total steps for PGD attack; `pgd_attack.step` is the attack amount of one PGD step; `trainer.OCNN` denotes whether to use OCNN method or not (different than other methods which should be set in `arch` since OCNN is a regularization method enforced directly to the loss) and `trainer.lamb_ocnn` is the correpsonding penalty constraint constant of OCNN.
 
-### Example
-In order to use our proposed Convolutional Normalization (ConvNorm), you can simply replace your convolutional layer and normalization layer by this [module](./models/prec_conv.py). In the module, the parameter **affine** controls whether to use the affine transform of our method, and the parameter **bn** controls whether to use BatchNorm after ConvNorm.
+Example usage:
+~~~python
+$ python train.py -c config_cifar10_standard.json
+$ python train_robust.py -c config_robust_train.json
+~~~
+
+## Validation
+`validate_pgd.py` and `fgsm.py` are the validation codes for measuing the performances of the robustly trained models, they should be used with the config file `config_robust_train.json` as well.
+
+Example usage:
+~~~python
+$ python validate_pgd.py -c config_robust_train.json -s <model checkpoint directory> --seed <random seed>
+$ python fgsm.py -c config_robust_train.json -s <model checkpoint directory> --seed <random seed>
+~~~
+
+## Other
+`check_result.ipynb` contains some example usage of the validation codes and the corresponding results from our experiments.
+
 
 ## Reference
 For technical details and full experimental results, please check [our paper](https://arxiv.org/abs/2103.00673).
@@ -49,5 +66,6 @@ For technical details and full experimental results, please check [our paper](ht
       primaryClass={cs.CV}
 }
 ```
+
 ## Contact
 Please contact shengliu@nyu.edu or xl998@nyu.edu if you have any question on the codes.

@@ -12,6 +12,21 @@ from itertools import repeat
 from collections import OrderedDict
 from models.prec_conv import Preconditioned_Conv2d
 
+# Below 2 methods from https://github.com/samaonline/Orthogonal-Convolutional-Neural-Networks/blob/14de5261e24544cef78b94c56684d2f1520c1e41/imagenet/utils.py#L34
+def deconv_orth_dist(kernel, stride = 2, padding = 1):
+    [o_c, i_c, w, h] = kernel.shape
+    output = torch.conv2d(kernel, kernel, stride=stride, padding=padding)
+    target = torch.zeros((o_c, o_c, output.shape[-2], output.shape[-1])).to(kernel.device)
+    ct = int(np.floor(output.shape[-1]/2))
+    target[:,:,ct,ct] = torch.eye(o_c).to(kernel.device)
+    return torch.norm( output - target )
+    
+def orth_dist(mat, stride=None):
+    mat = mat.reshape( (mat.shape[0], -1) )
+    if mat.shape[0] < mat.shape[1]:
+        mat = mat.permute(1,0)
+    return torch.norm( torch.t(mat)@mat - torch.eye(mat.shape[1]).to(mat.device))
+                      
 def load_from_state_dict(current_model, checkpoint_state):
     """
     Since running_V in preconditioning layers don't have correct init size,
@@ -24,23 +39,12 @@ def load_from_state_dict(current_model, checkpoint_state):
         if "running_V" in key:
             all_kernel_v.append(checkpoint_state[key])
             state[key] = torch.zeros(1)
-        if "running_prec" in key:
-            all_precs.append(checkpoint_state[key])
-            state[key] = torch.zeros(1)
-        if "current_prec" in key:
-            state[key] = torch.zeros(1)
     # Load all other parameters
-    current_model.load_state_dict(state, strict=False)
-    # Load running_prec 's
-    itera = 0
-    for mod in current_model.modules():
-        if isinstance(mod, BatchPreconditioningNorm2d):
-            mod.running_prec = all_precs[itera]
-            itera += 1
+    current_model.load_state_dict(state) #, strict=False
     # Load running_V 's
     itera = 0
     for mod in current_model.modules():
-        if isinstance(mod, Preconditioned_Conv2d):
+        if isinstance(mod, Preconditioned_Conv2d): #ConvNorm_2d
             mod.running_V = all_kernel_v[itera]
             itera += 1
 

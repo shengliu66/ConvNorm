@@ -1,7 +1,7 @@
 {
-    "name": "Experiment",
+    "name": "robust_training",
     "n_gpu": 1,
-    "seed": 12,
+    "seed": 8,
 
     "comet": {
         "api": "**comet key**",
@@ -11,8 +11,8 @@
     "arch": {
         "type": "resnet18",
         "args": {"num_classes": 10,
-                 "norm_layer_type": "no",
-                 "conv_layer_type": "prec_conv",
+                 "norm_layer_type": "bn",
+                 "conv_layer_type": "conv",
                  "linear_layer_type": "linear",
                  "activation_layer_type": "relu"}
     },
@@ -27,7 +27,7 @@
             "shuffle": true,
             "num_batches": 0,
             "validation_split": 0,
-            "num_workers": 8,
+            "num_workers": 4,
             "pin_memory": true
         }
     },
@@ -51,13 +51,13 @@
     "lr_scheduler": {
         "type": "MultiStepLR",
         "args": {
-            "milestones": [40, 80],
+            "milestones": [10, 20],
             "gamma": 0.1
         }
     },
 
     "trainer": {
-        "epochs": 120,
+        "epochs": 30,
         "save_dir": "saved/",
         "save_period": 1,
         "verbosity": 2,
@@ -72,7 +72,17 @@
         "asym": false,
         "_sym": "Symmetric noise if true",
         "sym": false,
-	"do_adv": false
+	"OCNN": false,
+	"lamb_ocnn": 0.001,
+	"do_adv": true,
+	"fgsm_step": 8,
+	"adv_clip_eps": 8,
+	"adv_repeats": 4
+    },
+
+    "pgd_attack": {
+	"K": 10,
+	"step": 2
     }
 }
                
