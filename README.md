@@ -60,10 +60,9 @@ For technical details and full experimental results, please check [our paper](ht
 @article{liu2021convolutional,
       title={Convolutional Normalization: Improving Deep Convolutional Network Robustness and Training}, 
       author={Sheng Liu and Xiao Li and Yuexiang Zhai and Chong You and Zhihui Zhu and Carlos Fernandez-Granda and Qing Qu},
-      year={2021},
-      eprint={2103.00673},
-      archivePrefix={arXiv},
-      primaryClass={cs.CV}
+      journal={Advances in Neural Information Processing Systems},
+      volume={34},
+      year={2021}
 }
 ```
 
